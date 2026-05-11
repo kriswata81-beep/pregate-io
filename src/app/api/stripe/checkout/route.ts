@@ -6,11 +6,13 @@ import { cookies } from "next/headers";
 
 export async function POST(req: NextRequest) {
   try {
-    const { plan } = await req.json();
+    const { plan } = await req.json() as { plan: string };
 
     if (plan !== "starter" && plan !== "pro") {
       return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
     }
+
+    const validatedPlan = plan as keyof typeof PLANS;
 
     // Get session from cookie
     const cookieStore = await cookies();
@@ -59,7 +61,7 @@ export async function POST(req: NextRequest) {
         .eq("id", org.id);
     }
 
-    const planConfig = PLANS[plan];
+    const planConfig = PLANS[validatedPlan];
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       payment_method_types: ["card"],
@@ -67,7 +69,7 @@ export async function POST(req: NextRequest) {
       line_items: [{ price: planConfig.stripePriceId, quantity: 1 }],
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?upgraded=1`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing`,
-      metadata: { org_id: org.id, plan },
+      metadata: { org_id: org.id, plan: validatedPlan },
     });
 
     return NextResponse.json({ url: session.url });
