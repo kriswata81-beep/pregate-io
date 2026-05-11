@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { PLANS } from "@/lib/stripe";
+import { PLANS } from "@/lib/stripe-plans";
 import type { Org } from "@/lib/supabase";
 import Link from "next/link";
 
