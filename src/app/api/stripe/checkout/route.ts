@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
     }
 
-    const validatedPlan = plan as keyof typeof PLANS;
+    const validatedPlan = plan as "starter" | "pro";
 
     // Get session from cookie
     const cookieStore = await cookies();
