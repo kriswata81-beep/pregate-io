@@ -1,11 +1,11 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Waitlist, WaitlistSignup } from "@/lib/supabase";
 import Link from "next/link";
 
-export default function WaitlistDetailPage() {
+function WaitlistDetailContent() {
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
@@ -275,5 +275,17 @@ export default function WaitlistDetailPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function WaitlistDetailPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: "100vh", background: "#0a0a0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <p style={{ color: "rgba(255,255,255,0.4)", fontFamily: "Inter, system-ui", fontSize: 14 }}>Loading...</p>
+      </div>
+    }>
+      <WaitlistDetailContent />
+    </Suspense>
   );
 }
