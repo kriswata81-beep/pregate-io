@@ -1,158 +1,164 @@
 "use client";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
-import { PLANS } from "@/lib/stripe-plans";
-import type { Org } from "@/lib/supabase";
+import { useState } from "react";
 import Link from "next/link";
 
+const TIERS = [
+  {
+    id: "free",
+    name: "Free",
+    price: 0,
+    label: "Free forever",
+    signups: "50 signups/mo",
+    waitlists: "1 waitlist",
+    features: ["Referral links built in", "CSV export", "Public waitlist page"],
+    cta: "Current plan",
+    highlight: false,
+    gamified: false,
+  },
+  {
+    id: "lite",
+    name: "Lite",
+    price: 9,
+    label: "$9/mo",
+    signups: "250 signups/mo",
+    waitlists: "3 waitlists",
+    features: ["Everything in Free", "🎮 Gamified position display", "Referral leaderboard", "Milestone emails"],
+    cta: "Upgrade to Lite",
+    highlight: false,
+    gamified: true,
+  },
+  {
+    id: "growth",
+    name: "Growth",
+    price: 29,
+    label: "$29/mo",
+    signups: "1,000 signups/mo",
+    waitlists: "5 waitlists",
+    features: ["Everything in Lite", "Custom branding", "Remove Powered by badge", "Email notifications"],
+    cta: "Upgrade to Growth",
+    highlight: true,
+    gamified: true,
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    price: 79,
+    label: "$79/mo",
+    signups: "Unlimited signups",
+    waitlists: "Unlimited waitlists",
+    features: ["Everything in Growth", "API access", "Webhooks", "Priority support"],
+    cta: "Upgrade to Pro",
+    highlight: false,
+    gamified: true,
+  },
+];
+
 export default function BillingPage() {
-  const router = useRouter();
-  const [org, setOrg] = useState<Org | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [upgrading, setUpgrading] = useState<string | null>(null);
+  const [loading, setLoading] = useState<string | null>(null);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) { router.replace("/auth/login"); return; }
-      const { data } = await supabase
-        .from("pg_orgs")
-        .select("*")
-        .eq("owner_id", session.user.id)
-        .single();
-      setOrg(data);
-      setLoading(false);
-    });
-  }, [router]);
-
-  async function handleUpgrade(plan: "starter" | "pro") {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-
-    setUpgrading(plan);
-    const res = await fetch("/api/stripe/checkout", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ plan }),
-    });
-    const json = await res.json();
-    if (json.url) {
-      window.location.href = json.url;
-    } else {
+  async function handleUpgrade(planId: string) {
+    setLoading(planId);
+    try {
+      const res = await fetch("/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: planId }),
+      });
+      const { url } = await res.json();
+      if (url) window.location.href = url;
+    } catch {
       alert("Something went wrong. Please try again.");
-      setUpgrading(null);
+    } finally {
+      setLoading(null);
     }
   }
 
-  if (loading) return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <p style={{ color: "rgba(255,255,255,0.4)", fontFamily: "Inter, system-ui", fontSize: 14 }}>Loading...</p>
-    </div>
-  );
-
-  const currentPlan = org?.plan ?? "free";
-
   return (
     <div style={{ minHeight: "100vh", background: "#0a0a0f", fontFamily: "Inter, system-ui, sans-serif", color: "#e8e8f0" }}>
-      <nav style={{
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
-        padding: "0 24px", height: 60,
-        display: "flex", alignItems: "center", gap: 12,
-      }}>
-        <Link href="/dashboard" style={{ color: "rgba(255,255,255,0.4)", textDecoration: "none", fontSize: 13 }}>← Dashboard</Link>
-        <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
-        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>Billing</span>
+      <nav style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "0 24px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 28, height: 28, borderRadius: 6, background: "linear-gradient(135deg, #3b82f6, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "white" }}>P</div>
+          <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: "-0.02em" }}>Pregate</span>
+        </div>
+        <Link href="/dashboard" style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", textDecoration: "none" }}>← Back to dashboard</Link>
       </nav>
 
-      <main style={{ maxWidth: 820, margin: "0 auto", padding: "40px 24px 80px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 32 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em" }}>Plans & billing</h1>
-          <span style={{
-            fontSize: 12, padding: "4px 12px", borderRadius: 100,
-            background: "rgba(167,139,250,0.12)",
-            border: "1px solid rgba(167,139,250,0.3)",
-            color: "#a78bfa", fontWeight: 600,
-            textTransform: "capitalize" as const,
-          }}>Current: {currentPlan}</span>
+      <main style={{ maxWidth: 1000, margin: "0 auto", padding: "60px 24px" }}>
+        <div style={{ textAlign: "center", marginBottom: 56 }}>
+          <h1 style={{ fontSize: "clamp(1.8rem, 4vw, 2.6rem)", fontWeight: 700, letterSpacing: "-0.02em", marginBottom: 12 }}>
+            Simple, founder-friendly pricing
+          </h1>
+          <p style={{ fontSize: 16, color: "rgba(255,255,255,0.45)", maxWidth: 480, margin: "0 auto" }}>
+            Start free. Upgrade when your waitlist grows.
+          </p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 20 }}>
-          {(["free", "starter", "pro"] as const).map(planKey => {
-            const plan = PLANS[planKey];
-            const isCurrent = currentPlan === planKey;
-            const isUpgrade = planKey === "starter" && currentPlan === "free"
-              || planKey === "pro" && (currentPlan === "free" || currentPlan === "starter");
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
+          {TIERS.map(tier => (
+            <div key={tier.id} style={{
+              padding: "28px 24px",
+              borderRadius: 12,
+              border: tier.highlight ? "1px solid rgba(99,102,241,0.5)" : "1px solid rgba(255,255,255,0.07)",
+              background: tier.highlight ? "rgba(99,102,241,0.08)" : "rgba(255,255,255,0.02)",
+              position: "relative",
+              display: "flex",
+              flexDirection: "column",
+            }}>
+              {tier.highlight && (
+                <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: "linear-gradient(135deg, #3b82f6, #8b5cf6)", borderRadius: 100, padding: "3px 12px", fontSize: 11, fontWeight: 700, color: "white", whiteSpace: "nowrap" }}>
+                  MOST POPULAR
+                </div>
+              )}
 
-            return (
-              <div key={planKey} style={{
-                padding: "28px 24px",
-                borderRadius: 12,
-                border: `1px solid ${isCurrent ? "rgba(99,102,241,0.4)" : "rgba(255,255,255,0.07)"}`,
-                background: isCurrent ? "rgba(99,102,241,0.07)" : "rgba(255,255,255,0.02)",
-              }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <h3 style={{ fontSize: 17, fontWeight: 700 }}>{plan.name}</h3>
-                  {isCurrent && (
-                    <span style={{ fontSize: 11, color: "#a78bfa", fontWeight: 600, letterSpacing: "0.05em" }}>ACTIVE</span>
-                  )}
-                </div>
-                <div style={{ marginBottom: 16 }}>
-                  <span style={{ fontSize: 28, fontWeight: 700 }}>
-                    {planKey === "free" ? "$0" : planKey === "starter" ? "$29" : "$79"}
-                  </span>
-                  <span style={{ fontSize: 13, color: "rgba(255,255,255,0.35)" }}>/month</span>
-                </div>
-                <ul style={{ listStyle: "none", display: "grid", gap: 8, marginBottom: 24 }}>
-                  {plan.features.map(f => (
-                    <li key={f} style={{ display: "flex", gap: 8, fontSize: 13, color: "rgba(232,232,240,0.6)" }}>
-                      <span style={{ color: "#4ade80", flexShrink: 0 }}>✓</span>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                {isCurrent ? (
-                  <div style={{
-                    textAlign: "center", padding: "10px",
-                    borderRadius: 7, border: "1px solid rgba(99,102,241,0.2)",
-                    color: "rgba(167,139,250,0.5)", fontSize: 13,
-                  }}>Current plan</div>
-                ) : isUpgrade ? (
-                  <button
-                    onClick={() => handleUpgrade(planKey as "starter" | "pro")}
-                    disabled={!!upgrading}
-                    style={{
-                      width: "100%",
-                      background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
-                      color: "white",
-                      border: "none",
-                      borderRadius: 7,
-                      padding: "11px",
-                      fontSize: 14,
-                      fontWeight: 600,
-                      cursor: upgrading ? "not-allowed" : "pointer",
-                      opacity: upgrading ? 0.7 : 1,
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    {upgrading === planKey ? "Redirecting..." : `Upgrade to ${plan.name} →`}
-                  </button>
-                ) : (
-                  <div style={{
-                    textAlign: "center", padding: "10px",
-                    borderRadius: 7, border: "1px solid rgba(255,255,255,0.06)",
-                    color: "rgba(255,255,255,0.25)", fontSize: 13,
-                  }}>Downgrade</div>
-                )}
+              <div style={{ marginBottom: 20 }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: tier.highlight ? "#a78bfa" : "rgba(255,255,255,0.5)", marginBottom: 8, letterSpacing: "0.04em" }}>{tier.name.toUpperCase()}</p>
+                <p style={{ fontSize: 32, fontWeight: 700, letterSpacing: "-0.02em" }}>
+                  {tier.price === 0 ? "Free" : `$${tier.price}`}
+                  {tier.price > 0 && <span style={{ fontSize: 14, fontWeight: 400, color: "rgba(255,255,255,0.35)" }}>/mo</span>}
+                </p>
+                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", marginTop: 6 }}>{tier.signups} · {tier.waitlists}</p>
               </div>
-            );
-          })}
+
+              <ul style={{ listStyle: "none", padding: 0, margin: "0 0 24px", flex: 1 }}>
+                {tier.features.map(f => (
+                  <li key={f} style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginBottom: 8, paddingLeft: 18, position: "relative" }}>
+                    <span style={{ position: "absolute", left: 0, color: "#4ade80" }}>✓</span>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              {tier.id === "free" ? (
+                <Link href="/dashboard" style={{ display: "block", textAlign: "center", padding: "11px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.4)", fontSize: 13, textDecoration: "none" }}>
+                  {tier.cta}
+                </Link>
+              ) : (
+                <button
+                  onClick={() => handleUpgrade(tier.id)}
+                  disabled={loading === tier.id}
+                  style={{
+                    width: "100%",
+                    background: tier.highlight ? "linear-gradient(135deg, #3b82f6, #8b5cf6)" : "rgba(99,102,241,0.15)",
+                    border: tier.highlight ? "none" : "1px solid rgba(99,102,241,0.3)",
+                    color: "white",
+                    borderRadius: 8,
+                    padding: "11px",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: loading === tier.id ? "not-allowed" : "pointer",
+                    opacity: loading === tier.id ? 0.6 : 1,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {loading === tier.id ? "Loading..." : tier.cta}
+                </button>
+              )}
+            </div>
+          ))}
         </div>
 
-        <p style={{ fontSize: 12, color: "rgba(255,255,255,0.25)", marginTop: 32, textAlign: "center" }}>
-          Questions? Email us at hello@pregate.io
+        <p style={{ textAlign: "center", fontSize: 13, color: "rgba(255,255,255,0.2)", marginTop: 40 }}>
+          All plans include the viral referral mechanic. Upgrade or cancel anytime.
         </p>
       </main>
     </div>
