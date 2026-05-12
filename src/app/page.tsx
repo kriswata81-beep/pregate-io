@@ -43,26 +43,40 @@ const PRICING = [
     cta: "Start free",
     href: "/auth/login",
     highlight: false,
+    badge: null,
   },
   {
-    name: "Starter",
+    name: "Lite",
+    price: "$9",
+    period: "/month",
+    desc: "Gamified referrals and position tracking.",
+    features: ["3 waitlists", "250 signups/mo", "Position display", "Referral leaderboard", "Email notifications", "CSV export"],
+    cta: "Start Lite",
+    href: "/auth/login?plan=lite",
+    highlight: false,
+    badge: "GAMIFIED",
+  },
+  {
+    name: "Growth",
     price: "$29",
     period: "/month",
     desc: "For builders who are serious about their launch.",
-    features: ["5 waitlists", "1,000 signups/mo", "Custom fields", "Email notifications on every signup", "Custom branding", "CSV export"],
-    cta: "Start Starter",
-    href: "/auth/login?plan=starter",
+    features: ["5 waitlists", "1,000 signups/mo", "Everything in Lite", "Custom branding", "Milestone emails", "Remove Pregate badge"],
+    cta: "Start Growth",
+    href: "/auth/login?plan=growth",
     highlight: true,
+    badge: "MOST POPULAR",
   },
   {
     name: "Pro",
     price: "$79",
     period: "/month",
     desc: "For teams running multiple products at once.",
-    features: ["Unlimited waitlists", "Unlimited signups", "Webhook notifications", "API access", "White-label", "Priority support"],
+    features: ["Unlimited waitlists", "Unlimited signups", "Everything in Growth", "API access", "Webhooks", "Priority support"],
     cta: "Start Pro",
     href: "/auth/login?plan=pro",
     highlight: false,
+    badge: null,
   },
 ];
 
@@ -328,28 +342,36 @@ export default function LandingPage() {
           Start free. Upgrade when you grow.
         </p>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
           {PRICING.map(plan => (
             <div key={plan.name} style={{
-              padding: "32px 28px",
+              padding: "28px 22px",
               borderRadius: 14,
-              border: `1px solid ${plan.highlight ? "rgba(99,102,241,0.4)" : "rgba(255,255,255,0.08)"}`,
-              background: plan.highlight ? "rgba(99,102,241,0.08)" : "rgba(255,255,255,0.02)",
+              border: `1px solid ${plan.highlight ? "rgba(139,92,246,0.5)" : "rgba(255,255,255,0.08)"}`,
+              background: plan.highlight
+                ? "linear-gradient(160deg, rgba(139,92,246,0.08) 0%, rgba(99,102,241,0.04) 100%)"
+                : "rgba(255,255,255,0.02)",
               position: "relative",
+              display: "flex",
+              flexDirection: "column",
             }}>
-              {plan.highlight && (
+              {plan.badge && (
                 <div style={{
                   position: "absolute",
-                  top: -1, left: "50%",
+                  top: -11, left: "50%",
                   transform: "translateX(-50%)",
-                  background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
-                  borderRadius: "0 0 8px 8px",
-                  padding: "4px 14px",
-                  fontSize: 11,
+                  background: plan.highlight
+                    ? "linear-gradient(90deg,#6366f1,#8b5cf6)"
+                    : "rgba(74,222,128,0.15)",
+                  border: plan.highlight ? "none" : "1px solid rgba(74,222,128,0.3)",
+                  borderRadius: 100,
+                  padding: "3px 10px",
+                  fontSize: 10,
                   fontWeight: 700,
-                  color: "white",
+                  color: plan.highlight ? "white" : "#4ade80",
                   letterSpacing: "0.08em",
-                }}>MOST POPULAR</div>
+                  whiteSpace: "nowrap",
+                }}>{plan.badge}</div>
               )}
               <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{plan.name}</h3>
               <div style={{ marginBottom: 12 }}>
@@ -389,25 +411,4 @@ export default function LandingPage() {
         padding: "80px 24px",
         textAlign: "center",
       }}>
-        <h2 style={{ fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 700, letterSpacing: "-0.02em", marginBottom: 20 }}>
-          Ready to gate your launch?
-        </h2>
-        <p style={{ fontSize: 16, color: "rgba(232,232,240,0.5)", marginBottom: 36 }}>
-          Join builders using Pregate to capture demand before they ship.
-        </p>
-        <Link href="/auth/login" style={{
-          background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
-          color: "white",
-          textDecoration: "none",
-          fontSize: 16,
-          fontWeight: 600,
-          padding: "14px 32px",
-          borderRadius: 10,
-        }}>Get started free — no credit card</Link>
-        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.2)", marginTop: 20 }}>
-          Built by Mākoa · Honolulu, HI
-        </p>
-      </section>
-    </div>
-  );
-}
+        <h2 style={{ fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 7
