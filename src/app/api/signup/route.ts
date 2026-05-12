@@ -3,101 +3,73 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 export async function POST(req: NextRequest) {
   try {
-    const { waitlist_id, email, data } = await req.json();
+    const body = await req.json();
+    const { waitlist_id, email, data, referred_by } = body as {
+      waitlist_id: string;
+      email: string;
+      data?: Record<string, string>;
+      referred_by?: string;
+    };
 
     if (!waitlist_id || !email) {
       return NextResponse.json({ error: "waitlist_id and email are required" }, { status: 400 });
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
-    }
-
     const admin = supabaseAdmin();
 
     // Check waitlist exists and is active
-    const { data: wl, error: wlErr } = await admin
+    const { data: wl } = await admin
       .from("pg_waitlists")
-      .select("id, is_active, notify_email, name, org_id")
+      .select("id, org_id, notify_email")
       .eq("id", waitlist_id)
+      .eq("is_active", true)
       .single();
 
-    if (wlErr || !wl) {
-      return NextResponse.json({ error: "Waitlist not found" }, { status: 404 });
+    if (!wl) {
+      return NextResponse.json({ error: "Waitlist not found or inactive" }, { status: 404 });
     }
 
-    if (!wl.is_active) {
-      return NextResponse.json({ error: "This waitlist is currently closed" }, { status: 403 });
-    }
+    // Check org plan limits
+    const { data: org } = await admin.from("pg_orgs").select("plan").eq("id", wl.org_id).single();
+    const planLimits: Record<string, number> = { free: 50, starter: 1000, pro: -1 };
+    const limit = planLimits[org?.plan ?? "free"] ?? 50;
 
-    // Check plan limits
-    const { data: org } = await admin
-      .from("pg_orgs")
-      .select("plan")
-      .eq("id", wl.org_id)
-      .single();
-
-    if (org?.plan === "free") {
-      const { count } = await admin
-        .from("pg_waitlist_signups")
-        .select("id", { count: "exact", head: true })
-        .eq("waitlist_id", waitlist_id);
-
-      if ((count ?? 0) >= 50) {
-        return NextResponse.json({ error: "This waitlist has reached its free plan limit. Please contact the organizer." }, { status: 429 });
+    if (limit > 0) {
+      const { count } = await admin.from("pg_waitlist_signups").select("*", { count: "exact", head: true }).eq("waitlist_id", waitlist_id);
+      if ((count ?? 0) >= limit) {
+        return NextResponse.json({ error: "This waitlist has reached its signup limit." }, { status: 429 });
       }
     }
 
-    // Upsert (prevent duplicate email per waitlist)
-    const { error: insertErr } = await admin
+    // Check for duplicate
+    const { data: existing } = await admin
       .from("pg_waitlist_signups")
-      .upsert({
+      .select("id, referral_code")
+      .eq("waitlist_id", waitlist_id)
+      .eq("email", email.toLowerCase())
+      .single();
+
+    if (existing) {
+      return NextResponse.json({ ok: true, referral_code: existing.referral_code, duplicate: true });
+    }
+
+    // Insert signup
+    const { data: signup, error: insertErr } = await admin
+      .from("pg_waitlist_signups")
+      .insert({
         waitlist_id,
-        email: email.trim().toLowerCase(),
+        email: email.toLowerCase().trim(),
         data: data ?? {},
-      }, { onConflict: "waitlist_id,email", ignoreDuplicates: true });
+        referred_by: referred_by ?? null,
+      })
+      .select("id, referral_code")
+      .single();
 
-    if (insertErr) {
-      console.error("[signup] insert error:", insertErr);
-      return NextResponse.json({ error: "Failed to record signup" }, { status: 500 });
-    }
+    if (insertErr) throw insertErr;
 
-    // Send notification email (fire-and-forget, non-fatal)
-    if (wl.notify_email && process.env.RESEND_API_KEY) {
-      sendNotificationEmail(wl.notify_email, wl.name, email, data ?? {}).catch(err =>
-        console.warn("[signup] notification failed:", err)
-      );
-    }
-
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, referral_code: signup?.referral_code ?? null });
   } catch (err) {
-    console.error("[signup] error:", err);
+    console.error("[api/signup] error:", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
-}
-
-async function sendNotificationEmail(
-  to: string,
-  waitlistName: string,
-  newEmail: string,
-  data: Record<string, string>
-) {
-  const dataLines = Object.entries(data)
-    .filter(([k]) => k !== "email")
-    .map(([k, v]) => `${k}: ${v}`)
-    .join("\n");
-
-  await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: "Pregate <notify@pregate.io>",
-      to,
-      subject: `New signup: ${waitlistName}`,
-      text: `New signup on "${waitlistName}"\n\nEmail: ${newEmail}\n${dataLines}\n\n— Pregate`,
-    }),
-  });
 }
