@@ -411,4 +411,25 @@ export default function LandingPage() {
         padding: "80px 24px",
         textAlign: "center",
       }}>
-        <h2 style={{ fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 7
+        <h2 style={{ fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 700, letterSpacing: "-0.02em", marginBottom: 20 }}>
+          Ready to gate your launch?
+        </h2>
+        <p style={{ fontSize: 16, color: "rgba(232,232,240,0.5)", marginBottom: 36 }}>
+          Join builders using Pregate to capture demand before they ship.
+        </p>
+        <Link href="/auth/login" style={{
+          background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
+          color: "white",
+          textDecoration: "none",
+          fontSize: 16,
+          fontWeight: 600,
+          padding: "14px 32px",
+          borderRadius: 10,
+        }}>Get started free — no credit card</Link>
+        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.2)", marginTop: 20 }}>
+          Built by Mākoa · Honolulu, HI
+        </p>
+      </section>
+    </div>
+  );
+}
